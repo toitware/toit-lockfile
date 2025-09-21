@@ -15,7 +15,7 @@ main args:
   lock := lockfile.Lock lock-path
       --logger=(log.default.with-level log.FATAL-LEVEL)
 
-  lock.do --if-stale=(: report-stale-lock lock-path):
+  lock.do --on-stale=(: report-stale-lock lock-path):
     print "$name: got lock!"
     sleep --ms=1000
     print "$name: releasing lock."
