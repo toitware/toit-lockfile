@@ -56,27 +56,27 @@ class Lock:
     logger_ = logger.with-name "filelock"
 
   /**
-  Variant of $(do [--if-stale] [block]) that throws an error if the
+  Variant of $(do [--on-stale] [block]) that throws an error if the
     lock is stale.
   */
   do [block] -> none:
-    do block --if-stale=: throw "LOCK_STALE"
+    do block --on-stale=: throw "LOCK_STALE"
 
   /**
   Runs the given $block while holding the lock.
   If the lock is already held by another process, waits until it is released.
   Checks every $poll-interval whether the lock is available.
-  If the lock is stale (not updated for $stale-duration) calls the $if-stale
+  If the lock is stale (not updated for $stale-duration) calls the $on-stale
     block with the $path as argument.
   When holding the lock, updates its mtime every $update-interval to
     prevent it from becoming stale.
   */
-  do [--if-stale] [block] -> none:
+  do [--on-stale] [block] -> none:
     try:
       if done-latch_:
         throw "INVALID_STATE"
       done-latch_ = monitor.Latch
-      update-task := take_ --if-stale=if-stale
+      update-task := take_ --on-stale=on-stale
       try:
         block.call
       finally:
@@ -84,7 +84,7 @@ class Lock:
     finally:
       done-latch_ = null
 
-  take_ [--if-stale] -> Task:
+  take_ [--on-stale] -> Task:
     unchanged := 0
     last-update-time/Time? := null
     // We need to see the lock unchanged for stale-factor iterations before
@@ -111,8 +111,8 @@ class Lock:
           stale-count = 0
         if stale-count >= stale-factor and last-update-time.to-now > stale-duration:
           logger_.info "stale lock detected" --tags={"path": path}
-          if-stale.call path
-          // Typically we don't return from the if-stale call, but if we do,
+          on-stale.call path
+          // Typically we don't return from the on-stale call, but if we do,
           // we assume that the user has resolved the stale lock situation,
           // and we try to take the lock again.
           stale-count = 0
@@ -168,7 +168,7 @@ class Lock:
       done-latch_ = null
 
 /**
-Variant of $(with-lock path [--if-stale] [block]) that throws an error if the
+Variant of $(with-lock path [--on-stale] [block]) that throws an error if the
   lock is stale.
 */
 with-lock path/string
@@ -182,7 +182,7 @@ with-lock path/string
       --poll-interval=poll-interval
       --update-interval=update-interval
       --stale-duration=stale-duration
-      --if-stale=: throw "LOCK_STALE"
+      --on-stale=: throw "LOCK_STALE"
       block
 
 /**
@@ -190,7 +190,7 @@ Runs the given $block with a lock on the specified $path.
 
 If the lock is already held by another process, waits until it is released.
 Checks every $poll-interval whether the lock is available.
-If the lock is stale (not updated for $stale-duration) calls the $if-stale block
+If the lock is stale (not updated for $stale-duration) calls the $on-stale block
   with the $path as argument.
 
 When holding the lock, updates its mtime every $update-interval to
@@ -201,11 +201,11 @@ with-lock path/string
     --poll-interval/Duration?=null
     --update-interval/Duration?=null
     --stale-duration/Duration?=null
-    [--if-stale]
+    [--on-stale]
     [block]:
   lock := Lock path
       --logger=logger
       --poll-interval=poll-interval
       --update-interval=update-interval
       --stale-duration=stale-duration
-  lock.do block --if-stale=if-stale
+  lock.do block --on-stale=on-stale
