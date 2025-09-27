@@ -27,6 +27,6 @@ main:
     expect-not (file.is-directory lock-path)
 
 test-stale lock/lockfile.Lock -> string:
-  lock.do --if-stale=(: return "ok"):
+  lock.do --on-stale=(: return "ok"):
     unreachable
   return "bad"

@@ -24,7 +24,7 @@ main:
   lock := lockfile.Lock lock-path
       --logger=(log.default.with-level log.FATAL-LEVEL)
 
-  lock.do --if-stale=(: report-stale-lock lock-path):
+  lock.do --on-stale=(: report-stale-lock lock-path):
     print "Got lock!"
 
 report-stale-lock path:
