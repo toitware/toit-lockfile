@@ -110,7 +110,7 @@ class Lock:
           last-update-time = mtime
           stale-count = 0
         if stale-count >= stale-factor and last-update-time.to-now > stale-duration:
-          logger_.info "stale lock detected" --tags={"path": path}
+          logger_.debug "stale lock detected" --tags={"path": path}
           on-stale.call path
           // Typically we don't return from the on-stale call, but if we do,
           // we assume that the user has resolved the stale lock situation,
@@ -119,9 +119,12 @@ class Lock:
           continue
 
         // The lock is not stale yet. Wait and try again.
-        logger_.debug "lock held by another process" --tags={"path": path}
+        logger_.trace "lock held by another process" --tags={"path": path}
         sleep poll-interval
         continue
+
+      // Make sure the containing directory exists.
+      directory.mkdir --recursive (fs.dirname path)
 
       // Try to create the lock directory.
       // If the entry already existed, don't try to catch the exception, as
@@ -140,7 +143,7 @@ class Lock:
       // We own the lock now.
       break
 
-    logger_.info "acquired lock" --tags={"path": path}
+    logger_.debug "acquired lock" --tags={"path": path}
 
     return task::
       try:
@@ -148,7 +151,7 @@ class Lock:
           while true:
             sleep update-interval
             // Update the mtime of the lock to indicate that we are still using it.
-            logger_.debug "updating lock mtime" --tags={"path": path}
+            logger_.trace "updating lock mtime" --tags={"path": path}
             file.update-time path --modification=Time.now
         if e:
           logger_.error "update task failed" --tags={"path": path, "error": e}
@@ -162,7 +165,7 @@ class Lock:
       done-latch_.get
       if file.is-directory path:
         directory.rmdir path
-        logger_.info "released lock" --tags={"path": path}
+        logger_.debug "released lock" --tags={"path": path}
       else:
         logger_.warn "lock directory already removed" --tags={"path": path}
       done-latch_ = null

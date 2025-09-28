@@ -35,3 +35,12 @@ main:
 
     lock2-done-latch.get
     expect-not (file.is-directory lock-path)
+
+    // Make sure that nested directories are created.
+    lock-path = "$dir/nested/lock"
+    lock = lockfile.Lock lock-path
+    lock.do:
+      // Do nothing.
+      null
+
+    expect (file.is-directory "$dir/nested")
