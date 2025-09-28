@@ -20,6 +20,9 @@ Uses polling to check whether a lock is still held. If multiple processes
   are trying to take the lock, the order in which they succeed is
   undefined. The lock is not reentrant, so if a process tries to take the
   lock while it already holds it, it will block until the lock is released.
+
+A lock is intended to protect processes and not tasks. Contrary to the
+  $monitor.Mutex.do it is only safe to use it from a single task.
 */
 
 /**
