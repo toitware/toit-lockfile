@@ -29,6 +29,10 @@ A lock is intended to protect processes and not tasks. Contrary to the
 A filesystem lock.
 */
 class Lock:
+  static DEFAULT-POLL-INTERVAL-MS ::= 10
+  static DEFAULT-UPDATE-INTERVAL-MS ::= 500
+  static DEFAULT-STALE-DURATION-MS ::= 1500
+
   static STATE-CREATED_ ::= 0
   static STATE-TAKING_ ::= 1
   static STATE-OWNED_ ::= 2
@@ -53,9 +57,9 @@ class Lock:
   */
   constructor .path
       --logger/log.Logger=log.default
-      --.poll-interval/Duration=(Duration --ms=10)
-      --.update-interval/Duration=(poll-interval * 3)
-      --.stale-duration/Duration=(Duration --ms=(max (update-interval.in-ms * 3) 1000)):
+      --.poll-interval/Duration=(Duration --ms=DEFAULT-POLL-INTERVAL-MS)
+      --.update-interval/Duration=(Duration --ms=DEFAULT-UPDATE-INTERVAL-MS)
+      --.stale-duration/Duration=(Duration --ms=DEFAULT-STALE-DURATION-MS):
     logger_ = logger.with-name "filelock"
 
   /**
@@ -179,9 +183,9 @@ Variant of $(with-lock path [--on-stale] [block]) that throws an error if the
 */
 with-lock path/string
     --logger/log.Logger=log.default
-    --poll-interval/Duration=Duration --ms=10
-    --update-interval/Duration=(poll-interval * 3)
-    --stale-duration/Duration=(Duration --ms=(max (update-interval.in-ms * 3) 1000))
+    --poll-interval/Duration?=null
+    --update-interval/Duration?=null
+    --stale-duration/Duration?=null
     [block]:
   with-lock path
       --logger=logger
