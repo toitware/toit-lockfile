@@ -5,4 +5,5 @@ dependencies:
     url: github.com/toitlang/pkg-fs
     version: ^2.3.1
   host:
-    path: ../pkg-host
+    url: github.com/toitlang/pkg-host
+    version: ^1.17.0
