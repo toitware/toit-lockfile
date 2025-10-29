@@ -106,11 +106,13 @@ class Lock:
       stale-factor = max (stale-duration.in-ms / poll-interval.in-ms) 2
     stale-count := 0
     creation-failures := 0
+    permission-failures := 0
     while true:
       stat/List? := null
-      // On Windows there can be a Permission Denied error when trying to
-      // stat a path in a non-existent directory.
-      catch: file.stat path
+      // On Windows there can be a permission-denied errors when there are
+      // concurrent accesses to the same path.
+      retry-if-permission-denied_:
+        stat = file.stat path
       if stat and stat[file.ST-TYPE] == file.DIRECTORY:
         creation-failures = 0
         mtime/Time := stat[file.ST-MTIME]
@@ -134,15 +136,18 @@ class Lock:
         continue
 
       // Make sure the containing directory exists.
-      directory.mkdir --recursive (fs.dirname path)
+      if not stat: create-parent-dir_ path
 
       // Try to create the lock directory.
       // If the entry already existed, don't try to catch the exception, as
       //   this is an invalid state in the filesystem, and reporting the error
       //   gives the user more information.
       e := catch --unwind=(: stat != null or it != "ALREADY_EXISTS"):
-        directory.mkdir path
+        retry-if-permission-denied_:
+          directory.mkdir path
+
       if e:
+        assert: e == "ALREADY_EXISTS"
         // We failed to create the lock directory. Someone else was faster than us.
         creation-failures++
         if creation-failures > TOO-MANY-CREATION-FAILURES_:
@@ -179,6 +184,32 @@ class Lock:
       else:
         logger_.warn "lock directory already removed" --tags={"path": path}
       done-latch_ = null
+
+  retry-if-permission-denied_ [block] -> none:
+    MAX-ATTEMPTS ::= 20
+    MAX-ATTEMPTS.repeat: | attempt/int |
+      catch --unwind=(: it != "PERMISSION_DENIED" or attempt == (MAX-ATTEMPTS - 1)):
+        block.call
+        return
+      // Permission denied. Wait a bit and try again.
+      sleep --ms=1
+
+  create-parent-dir_ path/string -> none:
+    parent-dir := fs.dirname path
+    retry-if-permission-denied_:
+      stat := file.stat parent-dir
+      // We don't care if the path is a directory or file. If it isn't a
+      // directory we will fail later.
+      if stat: return
+
+    // The path doesn't exist yet. We have to create it, but first
+    // make sure its parent exists.
+    create-parent-dir_ parent-dir
+
+    // Try to create the parent directory.
+    catch --unwind=(: it != "ALREADY_EXISTS"):
+      retry-if-permission-denied_:
+        directory.mkdir parent-dir
 
 /**
 Variant of $(with-lock path [--on-stale] [block]) that throws an error if the
