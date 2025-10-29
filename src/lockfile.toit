@@ -107,7 +107,10 @@ class Lock:
     stale-count := 0
     creation-failures := 0
     while true:
-      stat := file.stat path
+      stat/List? := null
+      // On Windows there can be a Permission Denied error when trying to
+      // stat a path in a non-existent directory.
+      catch: file.stat path
       if stat and stat[file.ST-TYPE] == file.DIRECTORY:
         creation-failures = 0
         mtime/Time := stat[file.ST-MTIME]
